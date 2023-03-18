@@ -1,12 +1,61 @@
-mem_start equ 0x10000
-
-
 start:
-    mov r1, 0
-    mov r2, 1
-loop:
-    add r3, r1, r2
-    store r3, word [mem_start]
-    mov r1, r2
-    mov r2, r3
-    jmp loop
+    mov r20, 3
+    mov r21, 5
+.loop:
+    store r20, [fib_buffer]
+    mov r1, r20
+    call [print_number]
+    add r22, r20, r21
+    mov r20, r21
+    mov r21, r22
+    jmp .loop
+
+
+
+print_number:
+    # Number to print is in r1
+    mov r16, 0 # r16 is our digit counter
+    mov r15, r30 # Save return address
+.gen_digits:
+    testnb r16, 20
+    jmpf .end_gen_digits
+    mov r2, 10
+    call [divmod] # We now have the digit in r2, the remaining number in r1
+    store r2, byte [r16 + digit_buffer]
+    add r16, 1
+    jmp .gen_digits
+.end_gen_digits:
+.print_digits:
+    sub r16, 1
+    load r1, byte [r16 + digit_buffer]
+    add r1, 48
+    store r1, byte [SCREEN]
+    testeq r16, 0
+    jmpf .end_print
+    jmp .print_digits
+.end_print:
+    mov r1, 0xa
+    store r1, [SCREEN]
+    mov r30, r15 # Restore return address
+    ret
+
+
+divmod:
+    # Begin of divmod function, nominator is in r1, denominator is in r2.
+    # Quotient should go into r1, remainder into r2.
+    mov r3, 0 # r3 is our subraction counter
+.loop:
+    testb r1, r2
+    jmpf .end
+    add r3, 1
+    sub r1, r2
+    jmp .loop
+.end:
+    mov r2, r1
+    mov r1, r3
+    ret
+
+
+SCREEN equ 0x10000
+digit_buffer equ 0x20000
+fib_buffer equ (digit_buffer + 20)
