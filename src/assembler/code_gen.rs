@@ -108,6 +108,7 @@ impl<'a> CodeGen<'a> {
             Mnemonic::Add => self.gen_add(args),
             Mnemonic::Sub => self.gen_sub(args),
             Mnemonic::Mul => self.gen_mul(args),
+            Mnemonic::Neg => self.gen_neg(args),
             Mnemonic::Jmp => self.gen_jmp(args),
             Mnemonic::JmpF => self.gen_jmpf(args),
             Mnemonic::Mov => self.gen_mov(args),
@@ -196,6 +197,17 @@ impl<'a> CodeGen<'a> {
 
         let operation = op | regs;
         let bytes = operation.to_le_bytes();
+        self.bytes.extend(bytes);
+    }
+
+    fn gen_neg(&mut self, args: &[Arg<'a>]) {
+        let ArgKind::Register(dst) = args[0].kind else { panic!() };
+        let ArgKind::Register(src) = args[1].kind else { panic!() };
+
+        let regs = encode_short_registers(dst, src);
+        let op = 0b10_100100;
+        let instruction = regs | op;
+        let bytes = instruction.to_le_bytes();
         self.bytes.extend(bytes);
     }
 
@@ -578,6 +590,7 @@ impl<'a> CodeGen<'a> {
                 let result = match op {
                     BinaryExpr::Add => a + b,
                     BinaryExpr::Sub => a - b,
+                    BinaryExpr::Mul => a * b,
                 };
                 Some(result)
             }

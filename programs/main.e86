@@ -1,8 +1,8 @@
 start:
+    call [prepare_divisors]
     mov r20, 3
     mov r21, 5
 .loop:
-    store r20, [fib_buffer]
     mov r1, r20
     call [print_number]
     add r22, r20, r21
@@ -18,21 +18,14 @@ print_number:
     mov r15, r30 # Save return address
 .gen_digits:
     testnb r16, 20
-    jmpf .end_gen_digits
-    mov r2, 10
-    call [divmod] # We now have the digit in r2, the remaining number in r1
-    store r2, byte [r16 + digit_buffer]
-    add r16, 1
-    jmp .gen_digits
-.end_gen_digits:
-.print_digits:
-    sub r16, 1
-    load r1, byte [r16 + digit_buffer]
+    jmpf .end_print
+    load r2, [r0 + r16 * 8 + divisors]
+    call [divmod] # We now have the digit in r1, the remaining number in r2
     add r1, 48
     store r1, byte [SCREEN]
-    testeq r16, 0
-    jmpf .end_print
-    jmp .print_digits
+    mov r1, r2
+    add r16, 1
+    jmp .gen_digits
 .end_print:
     mov r1, 0xa
     store r1, [SCREEN]
@@ -56,6 +49,23 @@ divmod:
     ret
 
 
+prepare_divisors:
+    mov r1, 0 # r1 is the loop counter
+    mov r2, 1 # r2 is the divisor
+    mov r3, (divisors + 19 * 8) # r3 is the pointer into the divisors array
+.loop:
+    testnb r1, 20
+    jmpf .end
+    store r2, [r3]
+    add r1, 1
+    sub r3, 8
+    mul r2, 10
+    jmp .loop
+.end:
+    ret
+
+
+
 SCREEN equ 0x10000
-digit_buffer equ 0x20000
-fib_buffer equ (digit_buffer + 20)
+divisors equ 0x20000
+divisors_temp equ (divisors + 20 * 8)

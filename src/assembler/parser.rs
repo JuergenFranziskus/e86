@@ -1,7 +1,7 @@
 use super::{
     ast::{
         Arg, ArgKind, Ast, BinaryExpr, DBArg, DBArgKind, Expr, ExprKind, Label, Line, MemArg,
-        MemSize, Mnemonic, Register,
+        MemSize, Mnemonic, Register, MemScale,
     },
     span::Span,
     token::{Token, TokenKind},
@@ -127,6 +127,8 @@ impl<'a, 'b> Parser<'a, 'b> {
         let mnemonic = match self.curr().kind {
             TokenKind::Add => Mnemonic::Add,
             TokenKind::Sub => Mnemonic::Sub,
+            TokenKind::Mul => Mnemonic::Mul,
+            TokenKind::Neg => Mnemonic::Neg,
             TokenKind::Jump => Mnemonic::Jmp,
             TokenKind::JumpF => Mnemonic::JmpF,
             TokenKind::Mov => Mnemonic::Mov,
@@ -137,7 +139,6 @@ impl<'a, 'b> Parser<'a, 'b> {
             TokenKind::TestEQ => Mnemonic::TestEQ,
             TokenKind::Call => Mnemonic::Call,
             TokenKind::Ret => Mnemonic::Ret,
-            TokenKind::Mul => Mnemonic::Mul,
             a => panic!("{a:?} is not a valid mnemonic"),
         };
         self.next();
@@ -160,10 +161,15 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.consume_token(TokenKind::OpenBracket);
 
         let base = self.parse_base_register();
-        let offset = self.parse_offset(base.is_some());
+        let index = self.parse_index_register();
+        let offset = self.parse_offset(base.is_some() || index.is_some());
+
 
         let end = self.curr_span();
         self.consume_token(TokenKind::CloseBracket);
+
+        let scale = index.map(|i| i.1);
+        let index = index.map(|i| i.0);
 
         let span = Span::merge(start, end);
         Arg {
@@ -171,8 +177,8 @@ impl<'a, 'b> Parser<'a, 'b> {
             kind: ArgKind::Memory(MemArg {
                 span,
                 base,
-                index: None,
-                scale: None,
+                index,
+                scale,
                 offset,
                 size,
             }),
@@ -192,6 +198,32 @@ impl<'a, 'b> Parser<'a, 'b> {
             Some(self.parse_register())
         } else {
             None
+        }
+    }
+    fn parse_index_register(&mut self) -> Option<(Register, MemScale)> {
+        if !self.is_token(TokenKind::Plus) || !matches!(self.peek(1).kind, TokenKind::Register(_)) {
+            return None;
+        }
+        self.next();
+        let index = self.parse_register();
+        let mut scale = MemScale::One;
+
+        if self.is_token(TokenKind::Star) {
+            self.next();
+            scale = self.parse_scale();
+        }
+
+        Some((index, scale))
+    }
+    fn parse_scale(&mut self) -> MemScale {
+        let TokenKind::Decimal(str) = self.curr().kind else { panic!() };
+        self.next();
+        match str {
+            "1" => MemScale::One,
+            "2" => MemScale::Two,
+            "4" => MemScale::Four,
+            "8" => MemScale::Eight,
+            _ => panic!(),
         }
     }
     fn parse_offset(&mut self, needs_plus: bool) -> Option<Expr<'a>> {
@@ -234,6 +266,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             let op = match self.curr().kind {
                 TokenKind::Plus => BinaryExpr::Add,
                 TokenKind::Minus => BinaryExpr::Sub,
+                TokenKind::Star => BinaryExpr::Mul,
                 _ => break,
             };
 
@@ -287,6 +320,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             kind: ExprKind::Paren(val.into()),
         }
     }
+
 
     fn parse_label(&mut self) -> Label<'a> {
         let TokenKind::Identifier(name) = self.curr().kind else { panic!() };
@@ -373,11 +407,15 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn curr(&self) -> Token<'a> {
         self.tokens[self.index]
     }
+    fn peek(&self, offset: usize) -> Token<'a> {
+        self.tokens[self.index + offset]
+    }
 }
 
 fn binary_bp(op: BinaryExpr) -> (i16, i16) {
     use BinaryExpr::*;
     match op {
         Add | Sub => (0, 1),
+        Mul => (100, 101)
     }
 }

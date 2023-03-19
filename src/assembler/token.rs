@@ -35,6 +35,8 @@ pub enum TokenKind<'a> {
     Plus,
     #[token("-")]
     Minus,
+    #[token("*")]
+    Star,
     #[token("$")]
     Here,
 
@@ -51,6 +53,8 @@ pub enum TokenKind<'a> {
     Sub,
     #[token("mul")]
     Mul,
+    #[token("neg")]
+    Neg,
     #[token("shl")]
     Shl,
     #[token("store")]
@@ -78,7 +82,7 @@ pub enum TokenKind<'a> {
     #[token("db")]
     DefineBytes,
 
-    #[regex(r"r[1-9][0-9]*|rip")]
+    #[regex(r"r[0-9]+|rip")]
     Register(&'a str),
 
     #[regex(r"\.[_a-zA-Z][0-9a-zA-Z_]*")]

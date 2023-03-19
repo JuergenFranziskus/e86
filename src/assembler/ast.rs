@@ -33,6 +33,7 @@ pub enum Mnemonic {
     Add,
     Sub,
     Mul,
+    Neg,
     TestNB,
     TestB,
     TestEQ,
@@ -131,6 +132,7 @@ pub enum ExprKind<'a> {
 pub enum BinaryExpr {
     Add,
     Sub,
+    Mul,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
